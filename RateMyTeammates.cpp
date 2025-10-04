@@ -9,7 +9,7 @@ std::shared_ptr<CVarManagerWrapper> _globalCvarManager;
 void RateMyTeammates::onLoad()
 {
 	_globalCvarManager = cvarManager;
-	//LOG("Plugin loaded!");
+	LOG("Plugin loaded!");
 	// !! Enable debug logging by setting DEBUG_LOG = true in logging.h !!
 	//DEBUGLOG("RateMyTeammates debug mode enabled");
 
@@ -46,4 +46,9 @@ void RateMyTeammates::onLoad()
 	//});
 	// You could also use std::bind here
 	//gameWrapper->HookEvent("Function TAGame.Ball_TA.Explode", std::bind(&RateMyTeammates::YourPluginMethod, this);
+}
+
+void RateMyTeammates::onUnload()
+{
+	LOG("Plugin unloaded!");
 }
