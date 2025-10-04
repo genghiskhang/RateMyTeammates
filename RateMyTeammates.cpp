@@ -3,6 +3,7 @@
 
 #include <fstream>
 #define REVIEW_FILE ".latest_review"
+#define REQUEST_ENDPOINT "https://httpbin.org/anything"
 
 BAKKESMOD_PLUGIN(RateMyTeammates, "write a plugin description here", plugin_version, PLUGINTYPE_FREEPLAY)
 
@@ -60,7 +61,8 @@ void RateMyTeammates::onUnload()
 
 void RateMyTeammates::onMatchEnd()
 {
-	this->reviewTeammates();
+	//this->reviewTeammates();
+	this->postReviews();
 	LOG("Teammates reviewed");
 }
 
@@ -89,4 +91,40 @@ void RateMyTeammates::reviewTeammates()
 	{
 		LOG("Unable to open file: " + (std::string)REVIEW_FILE);
 	}
+}
+
+void RateMyTeammates::postReviews()
+{
+	ServerWrapper server = gameWrapper->GetCurrentGameState();
+	if (!server) return;
+
+	ArrayWrapper<PriWrapper> pris = server.GetPRIs();
+	std::vector<std::pair<std::string, int>> playerInfos;
+	for (PriWrapper pri : pris)
+	{
+		if (!pri) continue;
+
+		std::string name = pri.GetPlayerName().ToString();
+		int playerId = pri.GetPlayerID();
+
+		playerInfos.push_back(std::pair<std::string, int>(name, playerId));
+	}
+
+	std::string playerInfosSerialized = "";
+	for (std::pair<std::string, int> playerInfo : playerInfos)
+	{
+		std::string playerName = playerInfo.first;
+		int playerId = playerInfo.second;
+
+		playerInfosSerialized += (playerName + "-" + std::to_string(playerId) + "\n");
+	}
+
+	CurlRequest req;
+	req.url = REQUEST_ENDPOINT;
+	req.body = playerInfosSerialized;
+
+	LOG("Sending reviews...");
+	HttpWrapper::SendCurlRequest(req, [this](int code, std::string response) {
+		LOG("Response: {} {}", code, response);
+	});
 }

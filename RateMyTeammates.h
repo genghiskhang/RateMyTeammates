@@ -22,6 +22,7 @@ class RateMyTeammates: public BakkesMod::Plugin::BakkesModPlugin
 
 	void onMatchEnd();
 	void reviewTeammates();
+	void postReviews();
 
 public:
 	//void RenderSettings() override; // Uncomment if you wanna render your own tab in the settings menu
