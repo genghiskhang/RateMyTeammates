@@ -1,6 +1,8 @@
 #include "pch.h"
 #include "RateMyTeammates.h"
 
+#include <fstream>
+#define REVIEW_FILE ".latest_review"
 
 BAKKESMOD_PLUGIN(RateMyTeammates, "write a plugin description here", plugin_version, PLUGINTYPE_FREEPLAY)
 
@@ -10,6 +12,9 @@ void RateMyTeammates::onLoad()
 {
 	_globalCvarManager = cvarManager;
 	LOG("Plugin loaded!");
+
+	gameWrapper->HookEvent("Function Engine.GameEvent_Soccar_TA.EventMatchEnded",
+		std::bind(&RateMyTeammates::onMatchEnd, this));
 	// !! Enable debug logging by setting DEBUG_LOG = true in logging.h !!
 	//DEBUGLOG("RateMyTeammates debug mode enabled");
 
@@ -51,4 +56,37 @@ void RateMyTeammates::onLoad()
 void RateMyTeammates::onUnload()
 {
 	LOG("Plugin unloaded!");
+}
+
+void RateMyTeammates::onMatchEnd()
+{
+	this->reviewTeammates();
+	LOG("Teammates reviewed");
+}
+
+void RateMyTeammates::reviewTeammates()
+{
+	std::ofstream stream(gameWrapper->GetBakkesModPath() / "data" / REVIEW_FILE);
+	if (stream.is_open())
+	{
+		ServerWrapper server = gameWrapper->GetCurrentGameState();
+		if (!server) return;
+
+		ArrayWrapper<PriWrapper> pris = server.GetPRIs();
+		//std::vector<std::string> playerNames;
+		for (PriWrapper pri : pris)
+		{
+			if (!pri) continue;
+
+			std::string name = pri.GetPlayerName().ToString();
+			int playerId = pri.GetPlayerID();
+
+			stream << name << ": " << playerId << "\n";
+		}
+		stream.close();
+	}
+	else
+	{
+		LOG("Unable to open file: " + (std::string)REVIEW_FILE);
+	}
 }
