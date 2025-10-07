@@ -14,8 +14,10 @@ void RateMyTeammates::onLoad()
 	_globalCvarManager = cvarManager;
 	LOG("Plugin loaded!");
 
-	gameWrapper->HookEvent("Function Engine.GameEvent_Soccar_TA.EventMatchEnded",
-		std::bind(&RateMyTeammates::onMatchEnd, this));
+	gameWrapper->HookEvent("Function Engine.GameEvent_Soccar_TA.EventMatchEnded", [this](std::string eventName)
+		{
+			this->postReviews();
+		});
 	// !! Enable debug logging by setting DEBUG_LOG = true in logging.h !!
 	//DEBUGLOG("RateMyTeammates debug mode enabled");
 
