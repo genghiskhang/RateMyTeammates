@@ -2,7 +2,7 @@
 #include "RateMyTeammates.h"
 
 #include <fstream>
-#define REVIEW_FILE ".latest_review"
+#define LAST_LOBBY ".last_lobby"
 #define REQUEST_ENDPOINT "https://httpbin.org/anything"
 
 BAKKESMOD_PLUGIN(RateMyTeammates, "write a plugin description here", plugin_version, PLUGINTYPE_FREEPLAY)
@@ -16,8 +16,13 @@ void RateMyTeammates::onLoad()
 
 	gameWrapper->HookEvent("Function Engine.GameEvent_Soccar_TA.EventMatchEnded", [this](std::string eventName)
 		{
-			this->postReviews();
+			this->saveLastLobby();
 		});
+
+	cvarManager->registerNotifier("DisplayReviewWindow", [this](std::vector<std::string> args) 
+		{
+			this->displayReviewWindow();
+		}, "", PERMISSION_ALL);
 	// !! Enable debug logging by setting DEBUG_LOG = true in logging.h !!
 	//DEBUGLOG("RateMyTeammates debug mode enabled");
 
@@ -61,72 +66,127 @@ void RateMyTeammates::onUnload()
 	LOG("Plugin unloaded!");
 }
 
-void RateMyTeammates::onMatchEnd()
+void RateMyTeammates::saveLastLobby()
 {
-	//this->reviewTeammates();
-	this->postReviews();
-	LOG("Teammates reviewed");
-}
-
-void RateMyTeammates::reviewTeammates()
-{
-	std::ofstream stream(gameWrapper->GetBakkesModPath() / "data" / REVIEW_FILE);
+	std::ofstream stream(gameWrapper->GetBakkesModPath() / "data" / (std::string)LAST_LOBBY, std::ios::trunc | std::ios::app);
 	if (stream.is_open())
 	{
 		ServerWrapper server = gameWrapper->GetCurrentGameState();
 		if (!server) return;
 
 		ArrayWrapper<PriWrapper> pris = server.GetPRIs();
-		//std::vector<std::string> playerNames;
 		for (PriWrapper pri : pris)
 		{
 			if (!pri) continue;
 
 			std::string name = pri.GetPlayerName().ToString();
-			int playerId = pri.GetPlayerID();
+			std::string identifier;
+			UniqueIDWrapper idWrapper = pri.GetUniqueIdWrapper();
 
-			stream << name << ": " << playerId << "\n";
+			//nullcheck???
+
+			switch (idWrapper.GetPlatform())
+			{
+			case OnlinePlatform::OnlinePlatform_Steam:
+				identifier = std::to_string(idWrapper.GetUID());
+				break;
+
+			case OnlinePlatform::OnlinePlatform_Epic:
+				identifier = idWrapper.GetEpicAccountID();
+				break;
+
+			//ps/xbox/switch users
+			default:
+				//identifier = "weirdos";
+				identifier = idWrapper.GetEpicAccountID(); //supposedly everyone has epic IDs now?
+				break;
+			}
+			stream << name << "|" << identifier << "\n";
 		}
 		stream.close();
 	}
 	else
 	{
-		LOG("Unable to open file: " + (std::string)REVIEW_FILE);
+		LOG("Error opening file {}", (std::string)LAST_LOBBY);
 	}
+}
+
+void RateMyTeammates::displayReviewWindow()
+{
+	//idfk some ImGui shi
 }
 
 void RateMyTeammates::postReviews()
 {
-	ServerWrapper server = gameWrapper->GetCurrentGameState();
-	if (!server) return;
-
-	ArrayWrapper<PriWrapper> pris = server.GetPRIs();
-	std::vector<std::pair<std::string, int>> playerInfos;
-	for (PriWrapper pri : pris)
-	{
-		if (!pri) continue;
-
-		std::string name = pri.GetPlayerName().ToString();
-		int playerId = pri.GetPlayerID();
-
-		playerInfos.push_back(std::pair<std::string, int>(name, playerId));
-	}
-
-	std::string playerInfosSerialized = "";
-	for (std::pair<std::string, int> playerInfo : playerInfos)
-	{
-		std::string playerName = playerInfo.first;
-		int playerId = playerInfo.second;
-
-		playerInfosSerialized += (playerName + "-" + std::to_string(playerId) + "\n");
-	}
-
-	CurlRequest req;
-	req.url = REQUEST_ENDPOINT;
-	req.body = playerInfosSerialized;
-
-	LOG("Sending reviews...");
-	HttpWrapper::SendCurlRequest(req, [this](int code, std::string response) {
-		LOG("Response: {} {}", code, response);
-	});
+	//prolly some curl shi
 }
+
+//void RateMyTeammates::onMatchEnd()
+//{
+//	//this->reviewTeammates();
+//	this->postReviews();
+//	LOG("Teammates reviewed");
+//}
+
+//void RateMyTeammates::reviewTeammates()
+//{
+//	std::ofstream stream(gameWrapper->GetBakkesModPath() / "data" / REVIEW_FILE);
+//	if (stream.is_open())
+//	{
+//		ServerWrapper server = gameWrapper->GetCurrentGameState();
+//		if (!server) return;
+//
+//		ArrayWrapper<PriWrapper> pris = server.GetPRIs();
+//		//std::vector<std::string> playerNames;
+//		for (PriWrapper pri : pris)
+//		{
+//			if (!pri) continue;
+//
+//			std::string name = pri.GetPlayerName().ToString();
+//			int playerId = pri.GetPlayerID();
+//
+//			stream << name << ": " << playerId << "\n";
+//		}
+//		stream.close();
+//	}
+//	else
+//	{
+//		LOG("Unable to open file: " + (std::string)REVIEW_FILE);
+//	}
+//}
+
+//void RateMyTeammates::postReviews()
+//{
+//	ServerWrapper server = gameWrapper->GetCurrentGameState();
+//	if (!server) return;
+//
+//	ArrayWrapper<PriWrapper> pris = server.GetPRIs();
+//	std::vector<std::pair<std::string, int>> playerInfos;
+//	for (PriWrapper pri : pris)
+//	{
+//		if (!pri) continue;
+//
+//		std::string name = pri.GetPlayerName().ToString();
+//		int playerId = pri.GetPlayerID();
+//
+//		playerInfos.push_back(std::pair<std::string, int>(name, playerId));
+//	}
+//
+//	std::string playerInfosSerialized = "";
+//	for (std::pair<std::string, int> playerInfo : playerInfos)
+//	{
+//		std::string playerName = playerInfo.first;
+//		int playerId = playerInfo.second;
+//
+//		playerInfosSerialized += (playerName + "-" + std::to_string(playerId) + "\n");
+//	}
+//
+//	CurlRequest req;
+//	req.url = REQUEST_ENDPOINT;
+//	req.body = playerInfosSerialized;
+//
+//	LOG("Sending reviews...");
+//	HttpWrapper::SendCurlRequest(req, [this](int code, std::string response) {
+//		LOG("Response: {} {}", code, response);
+//	});
+//}
